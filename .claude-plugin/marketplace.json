@@ -1,0 +1,28 @@
+{
+  "name": "obacker-adlc",
+  "owner": {
+    "name": "oBacker",
+    "email": "tuan@obacker.com"
+  },
+  "metadata": {
+    "description": "Agent-Driven Lifecycle — structured feature development with BDD specs, TDD, automated review, and verification gates.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "adlc",
+      "source": "./plugins/ADLC-Solo",
+      "description": "Agent-Driven Lifecycle — structured feature development with BDD specs, TDD implementation, automated review, and verification gates.",
+      "version": "12.0.0",
+      "author": {
+        "name": "oBacker"
+      },
+      "homepage": "https://github.com/obacker/adlc",
+      "repository": "https://github.com/obacker/adlc",
+      "license": "MIT",
+      "keywords": ["sdlc", "bdd", "tdd", "code-review", "multi-agent", "specification"],
+      "category": "development-workflow",
+      "tags": ["lifecycle", "testing", "agents", "verification"]
+    }
+  ]
+}
