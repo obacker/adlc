@@ -10,7 +10,7 @@
   },
   "plugins": [
     {
-      "name": "adlc",
+      "name": "adlc-solo",
       "source": "./plugins/ADLC-Solo",
       "description": "Agent-Driven Lifecycle — structured feature development with BDD specs, TDD implementation, automated review, and verification gates.",
       "version": "12.0.0",
@@ -23,6 +23,21 @@
       "keywords": ["sdlc", "bdd", "tdd", "code-review", "multi-agent", "specification"],
       "category": "development-workflow",
       "tags": ["lifecycle", "testing", "agents", "verification"]
+    },
+    {
+      "name": "adlc-team",
+      "source": "./plugins/ADLC-Team",
+      "description": "Agentic Development Lifecycle v6 — Team edition. 3 role-based agents (BA/DEV/QA) with platform enforcement, 10 skills, GitHub Projects integration. Spec-first BDD workflow with TDD implementation.",
+      "version": "6.0.0",
+      "author": {
+        "name": "oBacker"
+      },
+      "homepage": "https://github.com/obacker/claude-code-plugins",
+      "repository": "https://github.com/obacker/claude-code-plugins",
+      "license": "MIT",
+      "keywords": ["sdlc", "agentic", "team", "ba", "dev", "qa", "github-issues", "github-projects", "spec-driven", "tdd", "bdd"],
+      "category": "development-workflow",
+      "tags": ["lifecycle", "team", "agents", "bdd", "tdd"]
     }
   ]
 }
