@@ -1,0 +1,31 @@
+# Verification Gates
+# Commands run at different stages of the ADLC lifecycle.
+# Customize per project. All commands must exit 0 to pass.
+
+pre_session:
+  # Run at session start to verify environment is ready
+  - name: "Dependencies installed"
+    command: "{{DEPS_CHECK}}"  # e.g., "npm ci --silent" or "go mod download"
+
+post_task:
+  # Run after each dev-agent task completes
+  - name: "Build"
+    command: "{{BUILD_CMD}}"   # e.g., "npm run build" or "go build ./..."
+  - name: "Lint"
+    command: "{{LINT_CMD}}"    # e.g., "npm run lint" or "golangci-lint run"
+  - name: "Unit tests"
+    command: "{{TEST_CMD}}"    # e.g., "npm test" or "go test ./..."
+
+post_slice:
+  # Run after all tasks in a slice complete (more thorough)
+  - name: "Build"
+    command: "{{BUILD_CMD}}"
+  - name: "Lint"
+    command: "{{LINT_CMD}}"
+  - name: "All tests"
+    command: "{{TEST_CMD}}"
+  - name: "Type check"
+    command: "{{TYPECHECK_CMD}}"  # e.g., "npx tsc --noEmit" or "mypy ."
+  # Uncomment if you have coverage requirements:
+  # - name: "Coverage"
+  #   command: "{{COVERAGE_CMD}}"  # e.g., "npm run coverage -- --min-coverage=80"
