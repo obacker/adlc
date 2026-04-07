@@ -1,0 +1,160 @@
+# adlc-team v6 — Agent-Driven Lifecycle (Team Edition)
+
+3 role-based agents, 10 skills, platform-level enforcement. Built for teams of 3-8 people working on the same repo with GitHub Projects.
+
+## What changed from v5
+
+- **18 skills → 10** — dropped skills that overlap with companion plugins
+- **3 agents with frontmatter enforcement** — tool restrictions, model routing, worktree isolation, turn limits at platform level
+- **protect-spec hook** — PreToolUse hook denies edits to approved specs (was instruction-only in v5)
+- **Auto-harvest knowledge** — on-agent-stop hook auto-extracts discoveries from progress files to KNOWLEDGE.md
+- **Self-review at every role** — BA self-reviews spec quality, DEV self-tests via TDD, QA focuses on edge cases
+- **Dropped:** steering.md, file locks, captures, code-review-council, context-engineer, knowledge-keeper skill, domain-terms-builder, failure-semantics-designer, responsibility-mapper, eval-suite-builder
+- **Delegated to companions:** code review (pr-review-toolkit), git operations (commit-commands), context files (claude-md-management)
+
+## Install
+
+```bash
+# Install ADLC Team
+claude plugin install adlc-team
+
+# Required companions
+claude plugin install pr-review-toolkit@claude-plugins-official
+claude plugin install commit-commands@claude-plugins-official
+
+# Recommended
+claude plugin install claude-md-management@claude-plugins-official
+claude plugin install context7@claude-plugins-official
+claude plugin install github@claude-plugins-official
+
+# LSP for your stack
+claude plugin install typescript-lsp@claude-plugins-official  # or pyright-lsp, gopls-lsp
+
+# Initialize project
+adlc-init
+```
+
+## Architecture
+
+```
+3 agents:   ba-agent (Opus) → dev-agent (Sonnet, worktree) → qa-agent (Sonnet, worktree)
+10 skills:  ba-start, ba-write-spec, ba-split-tasks, dev-start, dev-implement, dev-bugfix, qa-start, qa-test-adversarial, shared-explore, shared-write-ui-tests
+3 hooks:    protect-spec (PreToolUse) + on-agent-stop (SubagentStop) + save-context (PreCompact/SessionEnd)
+5 companions: pr-review-toolkit, commit-commands, claude-md-management, context7, github
+```
+
+## Skills by Role
+
+### BA — Business Analyst (3 skills)
+
+| Skill | Trigger | What it does |
+|---|---|---|
+| `ba-start` | "start working as BA" | Load state, check GitHub Issues needing specs |
+| `ba-write-spec` | Describe a feature | Clarify → structure options → BDD spec with self-review → approval |
+| `ba-split-tasks` | "break [FEAT-ID] into tasks" | Approved spec → atomic dev tasks in slices (guard: spec must be approved) |
+
+### DEV — Developer (3 skills)
+
+| Skill | Trigger | What it does |
+|---|---|---|
+| `dev-start` | "start working as DEV" | Detect repo mode (A/B/C/D), surface tasks to pick up |
+| `dev-implement` | "start implementing" | Create GitHub Issues, plan parallel execution, spawn dev-agents, track progress |
+| `dev-bugfix` | "fix bug" | 6-step fast-track: reproduce → root cause → test → fix → verify → document |
+
+### QA — Quality Assurance (2 skills)
+
+| Skill | Trigger | What it does |
+|---|---|---|
+| `qa-start` | "start working as QA" | Check features ready for QA, plan exploratory tests |
+| `qa-test-adversarial` | "adversarial tests" | Edge cases, security, boundary attacks → findings report |
+
+### Shared (2 skills)
+
+| Skill | Trigger | What it does |
+|---|---|---|
+| `shared-explore` | "explore codebase" | Map stack, architecture, domain, tests, code health |
+| `shared-write-ui-tests` | "UI tests for [FEAT-ID]" | Playwright tests from BDD — DEV for happy path, QA for edge cases |
+
+## Enforcement Levels
+
+| What | How | Level |
+|------|-----|-------|
+| Spec immutability | `protect-spec.py` PreToolUse hook | **Platform** (denies the action) |
+| Worktree isolation | `isolation: worktree` in agent frontmatter | **Platform** (automatic) |
+| Tool restrictions | `tools:` in agent frontmatter | **Platform** (enforced) |
+| Model routing | `model:` in agent frontmatter | **Platform** (enforced) |
+| Turn limits | `maxTurns:` in agent frontmatter | **Platform** (enforced) |
+| Knowledge harvesting | `on-agent-stop.sh` SubagentStop hook | **Platform** (automatic) |
+| TDD iron law | dev-agent instructions | **Instruction** (strict) |
+| BA self-review | ba-write-spec checklist | **Instruction** (self-check) |
+| Verification gates | verification.yml commands | **Command** (exit code) |
+| Spec approval guard | ba-split-tasks Step 0 check | **Command** (exit code) |
+
+## Workflow
+
+```
+Feature request
+    │
+    ▼
+BA: ba-write-spec ──→ BDD spec with self-review ──→ User approves
+    │                                                       │
+    │                                                [spec locked by hook]
+    ▼
+BA: ba-split-tasks ──→ Task breakdown + slice plan ──→ User approves
+    │
+    ▼
+DEV: dev-implement ──→ GitHub Issues created ──→ dev-agents spawned (worktree)
+    │                                                  │
+    │                                      TDD: RED → GREEN → REFACTOR
+    │                                      Self-test: verification.yml
+    ▼
+DEV: tasks complete ──→ pr-review-toolkit (companion) ──→ Code review
+    │
+    ▼
+QA: qa-test-adversarial ──→ Edge cases, security ──→ QA report
+    │
+    ▼
+Merge ──→ Done
+```
+
+## File Ownership
+
+| Path | Owner | Readers |
+|---|---|---|
+| `.sdlc/specs/*` | BA | DEV, QA |
+| `.sdlc/tasks/*/` | BA | DEV |
+| `.sdlc/reviews/*` | QA | DEV |
+| `.sdlc/_active/*` | DEV | DEV |
+| `.sdlc/domain-terms.md` | BA | Everyone |
+| `.sdlc/domain-context.md` | BA | Everyone |
+| `.sdlc/KNOWLEDGE.md` | All (auto-harvested) | All |
+| `.sdlc/verification.yml` | DEV | All agents |
+
+## GitHub Labels
+
+| Label | Meaning |
+|---|---|
+| `adlc:needs-spec` | Feature needs BA spec work |
+| `adlc:spec-draft` | Spec written, awaiting approval |
+| `adlc:spec-approved` | Spec approved, ready for task breakdown |
+| `adlc:tasks-ready` | Tasks created, ready for DEV |
+| `adlc:task` | Individual dev task |
+| `adlc:ready` | Task ready for pickup |
+| `adlc:in-progress` | Task being worked on |
+| `adlc:done` | Task completed |
+| `adlc:blocked` | Task blocked |
+| `adlc:ready-for-qa` | All tasks done, ready for QA |
+| `adlc:qa-passed` | QA approved |
+| `adlc:qa-failed` | QA found critical issues |
+
+## Requirements
+
+- Claude Code with plugin support
+- Git initialized project
+- Python 3.x (for protect-spec.py hook)
+- Bash (for shell hooks)
+- `gh` CLI (for GitHub Issues/Projects integration)
+
+## License
+
+MIT — oBacker (obacker.com)
