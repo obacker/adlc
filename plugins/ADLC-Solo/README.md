@@ -11,8 +11,9 @@ ADLC enforces a disciplined development lifecycle:
 3. **Implementation** — Each task runs in an isolated worktree with strict TDD (iron law: no code without a failing test)
 4. **Review** — Two-stage: spec compliance first (qa-tester), then code quality (pr-review-toolkit)
 5. **Verification** — Automated gates from verification.yml, feature-registry cross-checks
+6. **Knowledge Capture** — Updates session-context.md, CAPTURES.md, domain files, and auto-memory with learnings
 
-After spec approval, acceptance criteria become **immutable** — enforced by a PreToolUse hook that blocks edits.
+After spec approval, acceptance criteria become **immutable** — enforced by a PreToolUse hook that blocks edits. Agents that approach their turn limit commit partial work and report DONE_WITH_CONCERNS — the orchestrator spawns a continuation agent automatically.
 
 ## Install
 
@@ -67,6 +68,8 @@ adlc-init
 | Tool restrictions | `tools:` in agent frontmatter | Platform (enforced) |
 | Model routing | `model:` in agent frontmatter | Platform (enforced) |
 | Turn limits | `maxTurns:` in agent frontmatter | Platform (enforced) |
+| Turn budget mgmt | Agents commit + report DONE_WITH_CONCERNS before hitting limit | Instruction (graceful exit) |
+| Knowledge capture | build-feature Phase 8 updates session-context.md, CAPTURES.md | Instruction (checklist) |
 | TDD iron law | Agent instructions + anti-rationalization list | Instruction (strict) |
 | Two-stage review | build-feature skill orchestration | Instruction (ordered phases) |
 | Verification gates | verification.yml commands | Command (exit code) |

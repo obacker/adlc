@@ -9,6 +9,8 @@
 - **protect-spec hook** — PreToolUse hook denies edits to approved specs (was instruction-only in v5)
 - **Auto-harvest knowledge** — on-agent-stop hook auto-extracts discoveries from progress files to KNOWLEDGE.md
 - **Self-review at every role** — BA self-reviews spec quality, DEV self-tests via TDD, QA focuses on edge cases
+- **Turn budget management** — all 3 agents commit partial work and report DONE_WITH_CONCERNS before hitting turn limit; orchestrator auto-continues
+- **Task sizing for agents** — BA writes tasks small enough for dev-agent's 40-turn budget: 1 AC/task, max 3 files, all context inline
 - **Dropped:** steering.md, file locks, captures, code-review-council, context-engineer, knowledge-keeper skill, domain-terms-builder, failure-semantics-designer, responsibility-mapper, eval-suite-builder
 - **Delegated to companions:** code review (pr-review-toolkit), git operations (commit-commands), context files (claude-md-management)
 
@@ -51,7 +53,7 @@ adlc-init
 |---|---|---|
 | `ba-start` | "start working as BA" | Load state, check GitHub Issues needing specs |
 | `ba-write-spec` | Describe a feature | Clarify → structure options → BDD spec with self-review → approval |
-| `ba-split-tasks` | "break [FEAT-ID] into tasks" | Approved spec → atomic dev tasks in slices (guard: spec must be approved) |
+| `ba-split-tasks` | "break [FEAT-ID] into tasks" | Approved spec → small atomic tasks (1 AC, max 3 files, inline context) in slices |
 
 ### DEV — Developer (3 skills)
 
@@ -85,6 +87,8 @@ adlc-init
 | Tool restrictions | `tools:` in agent frontmatter | **Platform** (enforced) |
 | Model routing | `model:` in agent frontmatter | **Platform** (enforced) |
 | Turn limits | `maxTurns:` in agent frontmatter | **Platform** (enforced) |
+| Turn budget mgmt | Agents commit + report DONE_WITH_CONCERNS before hitting limit | **Instruction** (graceful exit) |
+| Task sizing | BA writes 1 AC/task, max 3 files, inline context — fits dev-agent turn budget | **Instruction** (BA rules) |
 | Knowledge harvesting | `on-agent-stop.sh` SubagentStop hook | **Platform** (automatic) |
 | Mandatory agent spawn | Skills + enforce-worktree hook | **Platform + Instruction** (hook blocks lazy path) |
 | TDD iron law | dev-agent instructions | **Instruction** (strict) |
