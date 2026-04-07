@@ -30,7 +30,7 @@ If either is missing, inform the user: "Install required companion plugins first
 
 1. Create `.sdlc/` directory if it doesn't exist
 2. Create `.sdlc/.enforce-worktree` flag file (activates the PreToolUse hook that blocks production code edits on main)
-3. This flag is removed in Phase 8 after completion
+3. This flag is removed in Phase 9 (Summary) after completion
 
 ---
 

@@ -4,12 +4,14 @@ description: "Run adversarial tests against a feature — edge cases, security, 
 ---
 
 <context>
-You are the adversarial tester. Your job is to break things that DEV thought were working. You think like an attacker, a confused user, and a malicious insider simultaneously.
+You are the orchestrator for adversarial testing. Your job is to plan the attack vectors, then spawn a qa-agent in a worktree to execute them. You do NOT write tests yourself in main conversation.
+
+CRITICAL: The enforce-worktree hook will DENY test file edits from main conversation. You MUST spawn a qa-agent.
 </context>
 
 <instructions>
 
-## Step 1 — Load feature context
+## Phase 1 — Plan attack vectors (you do this in main conversation)
 
 Read:
 - `.sdlc/specs/[FEAT-ID]-*-spec.md` — what was specified
@@ -17,80 +19,64 @@ Read:
 - Source code for the feature (use Grep to find relevant files)
 - Existing tests (to understand what's already covered)
 
-## Step 2 — Plan attack vectors
+For each AC, plan attacks across these categories:
 
-For each AC, consider these categories:
+**Input attacks:** null, empty, whitespace, 10K+ strings, special chars (`<script>`, SQL injection, path traversal `../`), unicode, emoji, negative numbers, zero, MAX_INT, float precision
 
-**Input attacks:**
-- Null, empty, whitespace-only
-- Extremely long strings (10K+ chars)
-- Special characters: `<script>`, SQL injection patterns, path traversal (`../`)
-- Unicode edge cases, emoji, RTL text
-- Negative numbers, zero, MAX_INT, floating point precision
+**Auth/access attacks:** missing token, expired token, wrong role, deleted user
 
-**Auth/access attacks:**
-- Missing auth token
-- Expired token
-- Valid token but wrong role/permissions
-- Token for deleted user
+**State attacks:** race conditions, stale data, partial failures, replay attacks
 
-**State attacks:**
-- Concurrent modifications (race conditions)
-- Stale data (read-then-write conflicts)
-- Partial failures (what happens mid-operation?)
-- Replay attacks (submitting the same request twice)
+**Business logic attacks:** boundary values, impossible sequences, negative quantities, self-referential data
 
-**Business logic attacks:**
-- Values just above/below boundaries
-- Sequences that shouldn't be possible (skip steps in a workflow)
-- Negative quantities, zero-amount transactions
-- Self-referential data (user assigns task to themselves when not allowed)
+## Phase 2 — Spawn qa-agent to execute (MANDATORY)
 
-## Step 3 — Execute tests
+You MUST spawn a qa-agent. Do NOT write test code yourself.
 
-For each attack vector:
-1. Write a test or execute manually
-2. Record actual behavior vs expected behavior
-3. Classify severity: CRITICAL / HIGH / MEDIUM / LOW
+```
+Spawn Agent:
+  type: general-purpose
+  model: sonnet
+  isolation: worktree
+  prompt: |
+    You are a qa-agent running adversarial tests for [FEAT-ID].
+    Your job is to FIND problems, not fix them.
 
-Rules:
-- Run tests fresh — never trust cached results
-- Do NOT modify production code
-- Do NOT skip a category because "it probably works"
+    ## Feature spec
+    [paste relevant ACs from spec]
 
-## Step 4 — Write report
+    ## Attack vectors to execute
+    [paste your planned attack vectors from Phase 1]
 
-Output to `.sdlc/reviews/[FEAT-ID]-adversarial-report.md`:
+    ## Rules
+    - Write test code for each attack vector
+    - Run tests fresh — never trust cached results
+    - Do NOT modify production code — only test files
+    - Do NOT skip a category because "it probably works"
+    - Record actual behavior vs expected behavior
+    - Classify severity: CRITICAL / HIGH / MEDIUM / LOW
 
-```markdown
-# Adversarial Test Report: [FEAT-ID]
+    ## Output
+    Write report to .sdlc/reviews/[FEAT-ID]-adversarial-report.md:
 
-**Tester:** qa-agent
-**Date:** [YYYY-MM-DD]
-**Scope:** [what was tested]
+    # Adversarial Test Report: [FEAT-ID]
+    **Tester:** qa-agent
+    **Date:** [YYYY-MM-DD]
 
-## Summary
-- **Total tests:** [N]
-- **Passed:** [N]
-- **Failed:** [N] (Critical: [N], High: [N], Medium: [N], Low: [N])
+    ## Summary
+    - Total tests: [N]
+    - Passed: [N]
+    - Failed: [N] (Critical: [N], High: [N], Medium: [N], Low: [N])
 
-## Findings
+    ## Findings
+    [For each finding: category, severity, AC affected, description, repro steps, expected vs actual, evidence]
 
-### [CRITICAL/HIGH] [Finding title]
-**Category:** [input/auth/state/business-logic]
-**AC affected:** [AC-NNN or "none — adversarial"]
-**Description:** [what happened]
-**Reproduction:**
-1. [step]
-2. [step]
-**Expected:** [what should happen]
-**Actual:** [what happened]
-**Evidence:** [test output or screenshot description]
-
-## Verdict: [PASS / FAIL]
+    ## Verdict: [PASS / FAIL]
 ```
 
-## Step 5 — Post to GitHub
+## Phase 3 — Post results (you do this in main conversation)
+
+After qa-agent completes, read the report and post to GitHub:
 
 ```bash
 gh issue comment [SPEC_ISSUE] --body "## QA: Adversarial test report — [FEAT-ID]
@@ -117,6 +103,12 @@ When QA fails a feature:
 2. DEV picks up the issue in next dev-start (it appears under "Blocked")
 3. DEV fixes issues, runs verification, removes `adlc:qa-failed` and adds `adlc:ready-for-qa`
 4. QA re-tests in next qa-start (it appears under "Failed QA, needs re-test")
+
+## What you MUST NOT do
+
+- Write test code directly from main conversation
+- Skip spawning qa-agent ("I'll just check a few things manually")
+- Modify production code (even "just to add a log")
 
 </instructions>
 

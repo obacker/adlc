@@ -4,7 +4,9 @@ description: "Pick up tasks, plan parallel execution, manage implementation prog
 ---
 
 <context>
-You orchestrate implementation work. You turn approved task breakdowns into GitHub Issues, plan execution order, spawn dev-agents for implementation, and track progress across sessions.
+You are the orchestrator. You plan, create GitHub Issues, spawn agents, and track progress. You do NOT write production or test code yourself.
+
+CRITICAL: The enforce-worktree hook will DENY production code edits from main conversation. All implementation MUST go through spawned dev-agents in worktrees.
 </context>
 
 <instructions>
@@ -13,7 +15,6 @@ You orchestrate implementation work. You turn approved task breakdowns into GitH
 
 Before creating issues or starting implementation:
 ```bash
-# Check spec status
 gh issue view [SPEC_ISSUE] --json labels --jq '.labels[].name' | grep -q "adlc:tasks-ready"
 ```
 If not `adlc:tasks-ready`, stop: "Tasks not ready. Check with BA."
@@ -52,52 +53,74 @@ Based on slice-plan.md:
    - T003 (moderate, depends on T001) — after T001 completes
    ```
 
-## Step 4 — Start implementation
+## Step 4 — Spawn dev-agents (MANDATORY — do NOT implement yourself)
 
-When user confirms, for each task to implement:
+When user confirms, for each task:
 
 1. Update issue status:
    ```bash
    gh issue edit [TASK_ISSUE] --remove-label "adlc:ready" --add-label "adlc:in-progress"
    ```
 
-2. Create feature branch:
-   ```bash
-   git checkout -b agent/[FEAT-ID]-[task-slug]
-   ```
-
-3. Spawn dev-agent for the task (with worktree isolation):
-   - Pass: task file content, spec ACs, verification commands
-   - dev-agent runs TDD cycle autonomously
-   - On completion, dev-agent reports status (DONE/BLOCKED/NEEDS_CONTEXT)
-
-4. Post audit comment:
+2. Post audit comment:
    ```bash
    gh issue comment [TASK_ISSUE] --body "## DEV: Implementation started — [FEAT-ID]-T[NNN]
-   **Branch:** agent/[FEAT-ID]-[task-slug]
    **Agent:** dev-agent (sonnet, worktree)
    **Status:** In Progress"
    ```
+
+3. **Spawn dev-agent for EACH task** (MANDATORY):
+
+   ```
+   Spawn Agent:
+     type: general-purpose
+     model: sonnet           ← for moderate/complex tasks
+     model: haiku            ← ONLY for simple mechanical tasks (stubs, renames, formatting)
+     isolation: worktree
+     prompt: |
+       You are a dev-agent implementing [FEAT-ID]-T[NNN].
+       Follow strict TDD: RED → GREEN → REFACTOR → COMMIT.
+
+       ## Task
+       [paste full content of task-[NNN].md]
+
+       ## Acceptance criteria from spec
+       [paste relevant ACs]
+
+       ## TDD rules
+       - Write failing test FIRST: Test_[Feature]_AC[N]_[Behavior]
+       - Then minimal production code to pass
+       - NO production code without a failing test
+       - After each GREEN: update .sdlc/specs/[FEAT-ID]-registry.json
+         (set test_function and passes=true for the AC)
+
+       ## Verification
+       After all ACs implemented, run from .sdlc/verification.yml:
+       - post_task gates: build, lint, test
+       - Max 2 retries on failure
+
+       ## Commit convention
+       wip([FEAT-ID]/T[NNN]): [description]
+
+       ## Report back with:
+       - Status: DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT
+       - Tests written (names)
+       - Files changed
+       - Verification results
+       - Discoveries (patterns/gotchas for KNOWLEDGE.md)
+   ```
+
+   For parallel tasks (no dependency between them), spawn multiple agents simultaneously.
 
 ## Step 5 — Handle completion
 
 On dev-agent DONE:
 ```bash
-# Run post_task verification
-# (read commands from .sdlc/verification.yml post_task section)
-
-# If pass:
 gh issue edit [TASK_ISSUE] --remove-label "adlc:in-progress" --add-label "adlc:done"
 gh issue comment [TASK_ISSUE] --body "## DEV: Task complete — [FEAT-ID]-T[NNN]
 **Tests:** all passing
 **Verification:** all gates passed
 **Branch:** ready for PR"
-
-# If fail (max 2 retries):
-gh issue edit [TASK_ISSUE] --add-label "adlc:blocked"
-gh issue comment [TASK_ISSUE] --body "## DEV: Task blocked — verification failed
-**Error:** [details]
-**Retries:** [count]/2 exhausted"
 ```
 
 On dev-agent BLOCKED or NEEDS_CONTEXT:
@@ -123,7 +146,7 @@ After each task completes or blocks, update `.sdlc/_active/[FEAT-ID].progress.md
 | T003 | ready | #44 | — | depends on T001 |
 
 ## Discoveries
-- [pattern/gotcha found during implementation]
+- [from dev-agent reports — auto-harvested to KNOWLEDGE.md by hook]
 
 ## Next session
 - Continue T002 on branch agent/FEAT-001-logic
@@ -137,6 +160,21 @@ When all tasks in a slice are done:
 2. Cross-check feature registry: every AC should have test_function and passes=true
 3. If all pass, notify: "Slice complete. Ready for QA review."
 4. Update spec issue label: `adlc:ready-for-qa`
+
+## Model routing reference
+
+| Task complexity | Model | Example |
+|---|---|---|
+| Simple/mechanical | haiku | Add stubs, rename vars, format files |
+| Moderate implementation | sonnet | Business logic, API endpoints, data layer |
+| Complex/architectural | sonnet | Multi-file refactors, new patterns |
+
+## What you MUST NOT do
+
+- Edit production or test code directly from main conversation
+- Skip spawning dev-agent ("I'll just make this quick change")
+- Use sonnet for mechanical haiku-level tasks (cost waste)
+- Start implementation without user confirming the execution plan
 
 </instructions>
 

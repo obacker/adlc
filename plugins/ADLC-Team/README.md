@@ -39,7 +39,7 @@ adlc-init
 ```
 3 agents:   ba-agent (Opus) → dev-agent (Sonnet, worktree) → qa-agent (Sonnet, worktree)
 10 skills:  ba-start, ba-write-spec, ba-split-tasks, dev-start, dev-implement, dev-bugfix, qa-start, qa-test-adversarial, shared-explore, shared-write-ui-tests
-3 hooks:    protect-spec (PreToolUse) + on-agent-stop (SubagentStop) + save-context (PreCompact/SessionEnd)
+4 hooks:    protect-spec (PreToolUse) + enforce-worktree (PreToolUse) + on-agent-stop (SubagentStop) + save-context (PreCompact/SessionEnd)
 5 companions: pr-review-toolkit, commit-commands, claude-md-management, context7, github
 ```
 
@@ -80,13 +80,16 @@ adlc-init
 | What | How | Level |
 |------|-----|-------|
 | Spec immutability | `protect-spec.py` PreToolUse hook | **Platform** (denies the action) |
+| Worktree-only code edits | `enforce-worktree.py` PreToolUse hook | **Platform** (denies the action) |
 | Worktree isolation | `isolation: worktree` in agent frontmatter | **Platform** (automatic) |
 | Tool restrictions | `tools:` in agent frontmatter | **Platform** (enforced) |
 | Model routing | `model:` in agent frontmatter | **Platform** (enforced) |
 | Turn limits | `maxTurns:` in agent frontmatter | **Platform** (enforced) |
 | Knowledge harvesting | `on-agent-stop.sh` SubagentStop hook | **Platform** (automatic) |
+| Mandatory agent spawn | Skills + enforce-worktree hook | **Platform + Instruction** (hook blocks lazy path) |
 | TDD iron law | dev-agent instructions | **Instruction** (strict) |
 | BA self-review | ba-write-spec checklist | **Instruction** (self-check) |
+| Model cost routing | Skill instructions (haiku/sonnet/opus table) | **Instruction** (guidance) |
 | Verification gates | verification.yml commands | **Command** (exit code) |
 | Spec approval guard | ba-split-tasks Step 0 check | **Command** (exit code) |
 

@@ -4,100 +4,87 @@ description: "Generate Playwright UI tests from BDD scenarios. Shared by DEV (ha
 ---
 
 <context>
-You generate Playwright tests from BDD acceptance criteria. DEV uses you for happy-path tests during TDD. QA uses you for edge case and error state tests. Tests use intent-based selectors — never CSS selectors or XPath.
+You plan UI tests from BDD acceptance criteria, then spawn an agent in a worktree to write them. DEV mode = happy path, QA mode = edge cases. You do NOT write test code yourself in main conversation.
+
+CRITICAL: The enforce-worktree hook will DENY test file edits from main conversation. You MUST spawn an agent.
 </context>
 
 <instructions>
 
-## Step 1 — Load spec
+## Phase 1 — Plan tests (you do this in main conversation)
 
 Read:
 - `.sdlc/specs/[FEAT-ID]-*-spec.md` — acceptance criteria
 - Existing test files — avoid duplicating tests
 - `.sdlc/domain-terms.md` — use correct terminology
 
-## Step 2 — Determine scope
-
 Ask the user:
-- **DEV mode** (happy path): Generate tests for the GREEN path of each AC
-- **QA mode** (edge cases): Generate tests for error states, empty states, boundary inputs, concurrent actions
+- **DEV mode** (happy path): Tests for the GREEN path of each AC
+- **QA mode** (edge cases): Tests for error states, empty states, boundary inputs, concurrent actions
 
-## Step 3 — Generate tests
-
-Selector strategy (in priority order):
-1. `data-testid` attributes (preferred)
-2. ARIA roles: `page.getByRole('button', { name: 'Submit' })`
-3. Text content: `page.getByText('Welcome')`
-4. Placeholder: `page.getByPlaceholder('Enter email')`
-5. NEVER use CSS selectors, XPath, or DOM structure
-
-Test naming: `test('[FEAT-ID] AC-[N]: [behavior description]', ...)`
-
-Test structure:
-```typescript
-import { test, expect } from '@playwright/test';
-
-test.describe('[FEAT-ID]: [Feature name]', () => {
-  test('AC-001: [behavior from spec]', async ({ page }) => {
-    // Arrange — Given
-    await page.goto('/path');
-
-    // Act — When
-    await page.getByRole('button', { name: 'Action' }).click();
-
-    // Assert — Then
-    await expect(page.getByText('Expected result')).toBeVisible();
-  });
-});
+Plan the test list:
+```
+Tests to write:
+1. [FEAT-ID] AC-001: [happy path behavior]
+2. [FEAT-ID] AC-002: [happy path behavior]
+3. [FEAT-ID] Edge: [error state]
+...
 ```
 
-For QA edge case tests, include:
-- Empty state (no data)
-- Error state (API failure mock)
-- Loading state (slow response)
-- Boundary inputs (max length, special characters)
-- Concurrent actions (double-click, rapid navigation)
+## Phase 2 — Spawn agent to write tests (MANDATORY)
 
-## Step 4 — Output
+Choose agent based on mode:
+- **DEV mode** → spawn dev-agent (model: sonnet, isolation: worktree)
+- **QA mode** → spawn qa-agent (model: sonnet, isolation: worktree)
 
-Write tests to the project's test directory (match existing convention).
-If no convention exists, use: `tests/e2e/[FEAT-ID].spec.ts`
+```
+Spawn Agent:
+  type: general-purpose
+  model: sonnet
+  isolation: worktree
+  prompt: |
+    You are writing Playwright UI tests for [FEAT-ID].
 
-After writing:
-```bash
-# Run the tests
-npx playwright test tests/e2e/[FEAT-ID].spec.ts
+    ## Tests to write
+    [paste planned test list from Phase 1]
 
-# If tests need data-testid attributes added to components,
-# list required attributes:
+    ## Selector strategy (in priority order)
+    1. data-testid attributes (preferred)
+    2. ARIA roles: page.getByRole('button', { name: 'Submit' })
+    3. Text content: page.getByText('Welcome')
+    4. Placeholder: page.getByPlaceholder('Enter email')
+    5. NEVER use CSS selectors, XPath, or DOM structure
+
+    ## Test structure
+    - File: tests/e2e/[FEAT-ID].spec.ts (or match existing convention)
+    - Naming: test('[FEAT-ID] AC-[N]: [behavior]', ...)
+    - Format: Arrange (Given) → Act (When) → Assert (Then)
+
+    ## After writing
+    1. Run: npx playwright test tests/e2e/[FEAT-ID].spec.ts
+    2. If components need data-testid attributes, list them:
+       "[component] needs data-testid='[id]'"
+    3. Update .sdlc/specs/[FEAT-ID]-registry.json:
+       Set test_function and passes for each AC tested
+
+    ## Report back with:
+    - Tests written (names and file paths)
+    - Test results (pass/fail)
+    - Missing data-testid attributes (if any)
+    - Registry updates made
 ```
 
-If components need `data-testid` attributes, output a list for DEV:
-```
-## Required data-testid attributes
-- `[component]` needs `data-testid="[id]"`
-```
+## Phase 3 — Review results (you do this in main conversation)
 
-## Step 5 — Update registry
+After agent completes:
+1. Read the test results
+2. If data-testid attributes are needed, note them for DEV
+3. Verify registry was updated
 
-For each AC with a new UI test, update the feature registry:
-```bash
-# Read current registry
-cat .sdlc/specs/[FEAT-ID]-registry.json
+## What you MUST NOT do
 
-# For each AC tested, update test_function field:
-python3 -c "
-import json
-with open('.sdlc/specs/[FEAT-ID]-registry.json') as f:
-    reg = json.load(f)
-for ac in reg['acceptance_criteria']:
-    if ac['id'] == 'AC-NNN':
-        ac['test_function'] = 'test_name_here'
-        ac['passes'] = True  # or False if test fails
-with open('.sdlc/specs/[FEAT-ID]-registry.json', 'w') as f:
-    json.dump(reg, f, indent=2)
-"
-```
+- Write test code directly from main conversation
+- Skip spawning agent ("these are simple tests, I'll just write them")
 
 </instructions>
 
