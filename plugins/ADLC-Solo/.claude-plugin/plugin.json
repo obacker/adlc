@@ -2,16 +2,23 @@
   "name": "adlc-solo",
   "version": "12.0.0",
   "description": "Agent-Driven Lifecycle — structured feature development with BDD specs, TDD implementation, automated review, and verification gates. Requires companion plugins: pr-review-toolkit, commit-commands. Recommended: claude-md-management, context7, github, security-guidance, LSP (per stack).",
-  "author": "oBacker (obacker.com)",
+  "author": {
+    "name": "oBacker",
+    "email": "tuan@obacker.com"
+  },
   "license": "MIT",
-  "homepage": "https://github.com/obacker/adlc",
+  "homepage": "https://github.com/obacker/claude-code-plugins",
   "userConfig": {
     "projectStack": {
+      "title": "Project Stack",
       "description": "Primary language/framework (e.g., 'typescript/nextjs', 'go/gin', 'python/fastapi')",
+      "type": "string",
       "required": false
     },
     "lspPlugin": {
+      "title": "LSP Plugin",
       "description": "LSP plugin for your stack (e.g., 'typescript-lsp', 'pyright-lsp', 'gopls-lsp')",
+      "type": "string",
       "required": false
     }
   }
