@@ -1,6 +1,6 @@
 ---
 name: ba-agent
-model: opus
+model: sonnet
 tools:
   - Read
   - Grep
