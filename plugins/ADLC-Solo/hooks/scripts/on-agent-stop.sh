@@ -83,7 +83,7 @@ case "$AGENT_NAME" in
         fi
         ;;
 
-    qa-tester)
+    qa-spec-checker|qa-adversarial)
         # Check: test files should be committed
         UNSTAGED_TESTS=$(git diff --name-only -- '*test*' '*spec*' '*.test.*' '*.spec.*' 2>/dev/null | head -5)
         if [[ -n "$UNSTAGED_TESTS" ]]; then

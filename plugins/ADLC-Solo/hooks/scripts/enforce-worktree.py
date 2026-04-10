@@ -7,7 +7,7 @@ Projects opt-in by creating this file (e.g., via adlc-init or manually).
 
 Allows:
   - .sdlc/ files (orchestrator's domain)
-  - Test/spec/mock/fixture files and directories (qa-tester writes these)
+  - Test/spec/mock/fixture files and directories (QA agents write these)
   - Markdown files (docs, CLAUDE.md, domain-context.md)
   - Edits inside a git worktree (dev-agent runs here)
 

@@ -9,10 +9,11 @@ Structured feature development for Claude Code: BDD specs, TDD implementation, a
 - **Coverage gates** — Dev-agent enforces 85% coverage threshold with max 3 retry attempts
 - **Anti-drift rules** — Dev-agent has turn-10/turn-15 progress gates and context discipline
 - **Auto-retry on agent failure** — Orchestrator retries tool-limit/merge-conflict failures (max 2 retries)
-- **QA model split** — Spec compliance runs on Haiku (light), adversarial testing on Sonnet (creative)
+- **QA agent split** — qa-spec-checker (Haiku, platform-enforced) + qa-adversarial (Sonnet, platform-enforced) replace single qa-tester
+- **Task sizing for 35-turn budget** — plan-slice now sizes tasks to fit dev-agent's tighter turn limit
 - **State machine gates** — Hard verification commands at every phase transition in build-feature
 - **Warning surfacing** — SubagentStop hook outputs warnings to stdout (not just log file)
-- **Tighter turn budgets** — dev-agent 35 turns (was 50), qa-tester 30 turns (was 50)
+- **Tighter turn budgets** — dev-agent 35 turns (was 50), qa-spec-checker 20 turns, qa-adversarial 25 turns
 - **Convention fixes** — YAML array tools in agent frontmatter, statusMessage on all hooks, explicit agents array in plugin.json
 
 ## What It Does
@@ -22,7 +23,7 @@ ADLC enforces a disciplined development lifecycle:
 1. **Specification** — BDD acceptance criteria written by a specialized spec-writer agent (Opus)
 2. **Planning** — Features decomposed into parallel-friendly implementation tasks
 3. **Implementation** — Each task runs in an isolated worktree with strict TDD (iron law: no code without a failing test)
-4. **Review** — Two-stage: spec compliance first (qa-tester/Haiku), then code quality (pr-review-toolkit)
+4. **Review** — Two-stage: spec compliance (qa-spec-checker/Haiku), then adversarial (qa-adversarial/Sonnet), then code quality (pr-review-toolkit)
 5. **Verification** — Automated gates from verification.yml, feature-registry cross-checks, state machine enforcement
 6. **Knowledge Capture** — Updates session-context.md, CAPTURES.md, domain files, and auto-memory with learnings
 
@@ -66,7 +67,7 @@ adlc-init
 ## Architecture
 
 ```
-3 agents:   spec-writer (Opus) → dev-agent (Sonnet, worktree) → qa-tester (Haiku/Sonnet, main tree)
+4 agents:   spec-writer (Opus) → dev-agent (Sonnet, worktree) → qa-spec-checker (Haiku) → qa-adversarial (Sonnet)
 8 skills:   adlc (router), build-feature, plan-milestone, plan-slice, review-slice, start-session, bugfix, explore
 5 hooks:    protect-spec (PreToolUse), enforce-worktree (PreToolUse), post-edit-compile-check (PostToolUse), on-agent-stop (SubagentStop), save-context (PreCompact)
 7 companions: pr-review-toolkit, commit-commands, claude-md-management, context7, github, security-guidance, LSP
@@ -90,7 +91,7 @@ adlc-init
 | Auto-retry | Orchestrator retries tool-limit/merge-conflict failures (max 2) | Instruction (build-feature) |
 | Knowledge capture | build-feature Phase 8 updates session-context.md, CAPTURES.md | Instruction (checklist) |
 | TDD iron law | Agent instructions + anti-rationalization list | Instruction (strict) |
-| Two-stage review | Spec compliance (Haiku) → code quality (pr-review-toolkit) | Instruction (ordered phases) |
+| Two-stage review | qa-spec-checker (Haiku, platform) → qa-adversarial (Sonnet, platform) → code quality (pr-review-toolkit) | Platform (model in frontmatter) |
 | Verification gates | verification.yml commands | Command (exit code) |
 
 ## Companion Plugin Roles

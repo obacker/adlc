@@ -37,7 +37,7 @@ Each phase transition has a hard gate with a verification command. You CANNOT ad
 | Specification → Slice Planning | `test -f .sdlc/milestones/[ID]/milestone-spec.md` + user said "approved" + `spec_approved_at` set in feature-registry.json |
 | Slice Planning → Implementation | User approved slice plan |
 | Implementation → Review | All dev-agents returned DONE or DONE_WITH_CONCERNS + zero compile errors (run `go vet ./...` or `tsc --noEmit`) |
-| Review (Spec) → Review (Quality) | qa-tester reports PASS or PASS_WITH_CONCERNS |
+| Review (Spec) → Review (Quality) | qa-spec-checker reports PASS or PASS_WITH_CONCERNS |
 | Review (Quality) → Verification | Critical findings resolved |
 | Verification → Summary | All verification.yml post_slice commands exit 0 + feature-registry cross-check clean + `grep -r 'TODO\|FIXME' [changed files]` returns zero results |
 | Summary → Done | All AC statuses updated in feature-registry.json + knowledge capture complete |
@@ -87,8 +87,9 @@ Mark Specification complete.
 2. Check if `.sdlc/milestones/[MILESTONE-ID]/slice-plan.md` already exists (from `/adlc:plan-slice`):
    - If exists: load it, present to user for confirmation, skip to step 5
    - If not: decompose from scratch (continue below)
-3. Decompose ACs into implementation tasks:
-   - Each task: 1-2 hours of work, clear file scope, maps to specific ACs
+3. Decompose ACs into implementation tasks (dev-agent has **35-turn budget** — size tasks accordingly):
+   - Each task: max 3 files, 1-2 ACs, completable in ~15-25 turns of TDD
+   - If a task would touch 4+ files: split it — dev-agent will hit turn limits
    - Each task specifies: which files to create/modify, which ACs it covers, dependencies on other tasks
 3. Group tasks into slices:
    - Each slice: half-day of work, 2-3 tasks
@@ -165,21 +166,19 @@ Mark Implementation complete.
 
 **Stage 1 must pass before Stage 2 begins.**
 
-1. Launch **qa-tester** for **Spec Compliance** (Mode 1):
+1. Launch **qa-spec-checker** agent for **Spec Compliance**:
    ```
-   Agent: qa-tester (spawn with model: haiku — structured checking, light on general limit)
+   Agent: qa-spec-checker (platform-enforced model: haiku)
    Input: milestone-spec.md, feature-registry.json, list of changed files
-   Mode: Spec compliance ONLY
    ```
    - Runs in main working tree (NOT isolated — needs to see merged dev-agent code)
    - Checks: every AC has a test, every test passes, no extra scope
    - **Spec compliance must PASS before proceeding to adversarial testing.**
 
-2. Launch **qa-tester** for **Adversarial Testing** (Mode 2):
+2. Launch **qa-adversarial** agent for **Adversarial Testing**:
    ```
-   Agent: qa-tester (spawn with model: sonnet — needs creative reasoning, uses Sonnet limit)
-   Input: milestone-spec.md, feature-registry.json, list of changed files
-   Mode: Adversarial ONLY (skip spec compliance — already passed)
+   Agent: qa-adversarial (platform-enforced model: sonnet)
+   Input: milestone-spec.md, feature-registry.json, list of changed files, spec compliance results
    ```
    - Runs in main working tree
    - Tries to break the implementation: invalid inputs, boundary values, auth bypass, injection, etc.
@@ -187,10 +186,10 @@ Mark Implementation complete.
 3. If spec compliance fails:
    - Identify which ACs are not covered or failing
    - Spawn dev-agent(s) to fix specific failures
-   - Re-run qa-tester on fixed areas
+   - Re-run qa-spec-checker on fixed areas
    - **Loop max 3 times. Still failing → report to user.**
 
-Mark Review (Spec Compliance) complete only when qa-tester reports PASS or PASS_WITH_CONCERNS.
+Mark Review (Spec Compliance) complete only when qa-spec-checker reports PASS or PASS_WITH_CONCERNS.
 
 ---
 
