@@ -10,7 +10,7 @@
 - Dev server: `{{DEV_CMD}}`
 
 ## ADLC
-This project uses ADLC v12 for structured feature development.
+This project uses ADLC v13 for structured feature development.
 
 - Domain context: domain-context.md
 - Domain terms: domain-terms.md
@@ -62,6 +62,15 @@ When using parallel agents: assign each agent a specific set of files or package
 - Build Docker images for linux/amd64.
 - Use Cloud Build 2nd gen triggers (not 1st gen).
 - Never use os.Exit(1) in health checks — return errors gracefully.
+
+### Project-Level Hooks
+
+This project has `.claude/settings.json` with hooks that run in ALL Claude Code sessions (not just ADLC plugin sessions). These coexist with the ADLC plugin hooks:
+
+- **PostToolUse (Edit|Write)**: Runs compile/type checks after every source file edit
+- **PreCompact**: Runs build validation before context window compaction
+
+To customize: edit `.claude/settings.json` with your project's build/lint commands.
 
 ### Performance Configuration
 
