@@ -6,8 +6,14 @@ description: >
   Runs in main working tree (not isolated) to see merged code.
   Tests but does NOT fix production code — report only.
 model: sonnet
-maxTurns: 50
-tools: Read, Write, Edit, Bash, Grep, Glob
+maxTurns: 30
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Grep
+  - Glob
 memory: true
 ---
 

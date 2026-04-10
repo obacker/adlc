@@ -27,6 +27,23 @@ If either is missing, inform the user: "Install required companion plugins first
 
 ---
 
+## Gate Enforcement
+
+Each phase transition has a hard gate with a verification command. You CANNOT advance to the next phase without passing its gate. If a gate fails: fix and re-run. Do NOT skip.
+
+| Phase Transition | Gate Verification |
+|-----------------|-------------------|
+| Discovery → Specification | User confirmed understanding |
+| Specification → Slice Planning | `test -f .sdlc/milestones/[ID]/milestone-spec.md` + user said "approved" + `spec_approved_at` set in feature-registry.json |
+| Slice Planning → Implementation | User approved slice plan |
+| Implementation → Review | All dev-agents returned DONE or DONE_WITH_CONCERNS + zero compile errors (run `go vet ./...` or `tsc --noEmit`) |
+| Review (Spec) → Review (Quality) | qa-tester reports PASS or PASS_WITH_CONCERNS |
+| Review (Quality) → Verification | Critical findings resolved |
+| Verification → Summary | All verification.yml post_slice commands exit 0 + feature-registry cross-check clean + `grep -r 'TODO\|FIXME' [changed files]` returns zero results |
+| Summary → Done | All AC statuses updated in feature-registry.json + knowledge capture complete |
+
+---
+
 ## Phase 1: Discovery
 
 Feature request: $ARGUMENTS
@@ -129,6 +146,12 @@ Mark Slice Planning complete.
         - If no (general concerns): note concerns, proceed
       - **NEEDS_CONTEXT**: provide context and re-spawn
       - **BLOCKED**: report to user, decide whether to skip or fix
+   h. **Read agent log**: After each dev-agent returns, read `.sdlc/agent-log.txt` for warnings surfaced by the SubagentStop hook. Investigate any warnings before proceeding.
+   i. **Auto-retry on failure** (max 2 retries per task):
+      - If error is "tool-use limit exhausted": spawn NEW dev-agent for remaining ACs only, pass completed ACs list and context from failed agent's last commit
+      - If error is "merge conflict": run `git merge --abort` in worktree, re-spawn dev-agent with updated base branch
+      - If error is unknown: report to user with diagnostics from `.sdlc/agent-log.txt`
+      - After 2 failed retries for the same task: escalate to user, do NOT keep retrying
 
 3. After all slices complete: proceed to Phase 5
 
@@ -142,17 +165,25 @@ Mark Implementation complete.
 
 **Stage 1 must pass before Stage 2 begins.**
 
-1. Launch **qa-tester** agent (runs in main working tree, NOT isolated — needs to see merged dev-agent code):
+1. Launch **qa-tester** for **Spec Compliance** (Mode 1):
    ```
-   Agent: qa-tester
+   Agent: qa-tester (spawn with model: haiku — structured checking, light on general limit)
    Input: milestone-spec.md, feature-registry.json, list of changed files
-   Mode: Spec compliance first, then adversarial
+   Mode: Spec compliance ONLY
    ```
-2. qa-tester checks:
-   - Every AC has a corresponding test
-   - Every test passes
-   - No extra scope (implementation doesn't do more than spec requires)
-   - Adversarial tests for edge cases
+   - Runs in main working tree (NOT isolated — needs to see merged dev-agent code)
+   - Checks: every AC has a test, every test passes, no extra scope
+   - **Spec compliance must PASS before proceeding to adversarial testing.**
+
+2. Launch **qa-tester** for **Adversarial Testing** (Mode 2):
+   ```
+   Agent: qa-tester (spawn with model: sonnet — needs creative reasoning, uses Sonnet limit)
+   Input: milestone-spec.md, feature-registry.json, list of changed files
+   Mode: Adversarial ONLY (skip spec compliance — already passed)
+   ```
+   - Runs in main working tree
+   - Tries to break the implementation: invalid inputs, boundary values, auth bypass, injection, etc.
+
 3. If spec compliance fails:
    - Identify which ACs are not covered or failing
    - Spawn dev-agent(s) to fix specific failures
